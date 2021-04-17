@@ -1,0 +1,67 @@
+service: sls-sample
+
+provider:
+  name: aws
+  runtime: nodejs12.x
+  region: ca-central-1
+  stage: dev
+  environment:
+    DYNAMODB_TABLE: ${self:service}-${self:provider.stage}
+  iamRoleStatements:
+    - Effect: Allow
+      Action:
+        - dynamodb:Query
+        - dynamodb:Scan
+        - dynamodb:GetItem
+        - dynamodb:PutItem
+        - dynamodb:UpdateItem
+        - dynamodb:DeleteItem
+      Resource: "arn:aws:dynamodb:${self:provider.region}:*:table/${self:provider.environment.DYNAMODB_TABLE}*"
+
+functions:
+  hello:
+    handler: handler.hello
+  getAll:
+    handler: handler.getAll
+    environment:
+      tableName: ${self:provider.environment.DYNAMODB_TABLE}-hello
+  get:
+    handler: handler.get
+    environment:
+      tableName: ${self:provider.environment.DYNAMODB_TABLE}-hello
+  put:
+    handler: handler.put
+    environment:
+      tableName: ${self:provider.environment.DYNAMODB_TABLE}-hello
+
+resources:
+  Resources:
+    Hello:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: ${self:provider.environment.DYNAMODB_TABLE}-hello
+        AttributeDefinitions:
+          - AttributeName: id
+            AttributeType: S
+        KeySchema:
+          - AttributeName: id
+            KeyType: HASH
+        ProvisionedThroughput:
+          ReadCapacityUnits: 1
+          WriteCapacityUnits: 1
+
+plugins:
+  - serverless-dynamodb-local
+custom:
+  dynamodb:
+    stages: dev
+    start:
+      port: 8082
+      inMemory: true
+      migrate: true
+      seed: true
+    seed:
+      hello:
+        sources:
+          - table: ${self:provider.environment.DYNAMODB_TABLE}-hello
+            sources: [./seeds/hello.json]
